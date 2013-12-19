@@ -2359,7 +2359,7 @@ store._ddl['txout_approx'],
                 txin = {
                     'prevout_hash': store.hashout(prevout_hash),
                     'prevout_n': prevout_n,
-                    'value': store.formatValue(value, decimals)}
+                    'value': store.format_value(value, decimals)}
             else:
                 if prevout_hash is None:
                     prev_out = {
@@ -2370,7 +2370,7 @@ store._ddl['txout_approx'],
                     prev_out = {
                         'hash': store.hashout_hex(prevout_hash),
                         'n': prevout_n,
-                        'value': store.formatValue(value, decimals)}
+                        'value': store.format_value(value, decimals)}
                 txin = {'prev_out': prev_out}
             if store.keep_scriptsig:
                 scriptSig = row[2]
@@ -2396,7 +2396,7 @@ store._ddl['txout_approx'],
                     'scriptPubKey': store.binout(scriptPubKey)}
             else:
                 txout = {
-                    'value': store.formatValue(satoshis, decimals),
+                    'value': store.format_value(satoshis, decimals),
                     'raw_scriptPubKey': store.binout_hex(scriptPubKey)}
             txouts.append(txout)
 
@@ -2406,7 +2406,7 @@ store._ddl['txout_approx'],
 
         return tx
     
-    def formatValue(store, satoshis, decimals):
+    def format_value(store, satoshis, decimals):
         coin = 10 ** decimals
         satoshis = int(satoshis)
         integer = satoshis / coin
