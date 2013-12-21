@@ -32,8 +32,9 @@ import deserialize
 import util
 import logging
 import base58
+from ColorSet import ColorSet
 
-SCHEMA_VERSION = "Abe35"
+SCHEMA_VERSION = "Abe36"
 
 CONFIG_DEFAULTS = {
     "dbtype":             None,
@@ -1183,6 +1184,13 @@ store._ddl['configvar'],
     FOREIGN KEY (block_id) REFERENCES block (block_id),
     FOREIGN KEY (txin_id) REFERENCES txin (txin_id),
     FOREIGN KEY (out_block_id) REFERENCES block (block_id)
+)""",
+
+"""CREATE TABLE color (
+    color_set_hash  NUMERIC(32) NOT NULL,
+    color_set       VARCHAR(1000) NOT NULL,
+    names           VARCHAR(1000) NOT NULL,
+    PRIMARY KEY (color_set_hash)
 )""",
 
 store._ddl['chain_summary'],
@@ -2412,6 +2420,52 @@ store._ddl['txout_approx'],
         integer = satoshis / coin
         frac = satoshis % coin
         return ("%%d.%%0%dd" % (decimals,)) % (integer, frac)
+
+    def fix_color_desc(store, color_desc):
+        if len(color_desc.split(':')) != 4:
+            raise Exception('invalid color description: ' + color_desc)
+        [ coloring_scheme, transaction_hash, output_index, height ] = color_desc.split(':')
+        if int(height) > 0:
+            return color_desc
+        
+        #lookup the height
+        row = store.selectrow("""
+            SELECT b.block_height
+              FROM chain c
+              JOIN chain_candidate cc ON (cc.chain_id = c.chain_id)
+              JOIN block b ON (b.block_id = cc.block_id)
+              JOIN block_tx ON (block_tx.block_id = b.block_id)
+              JOIN tx ON (tx.tx_id = block_tx.tx_id)
+             WHERE tx.tx_hash = ?
+             ORDER BY c.chain_id, cc.in_longest DESC, b.block_hash
+        """, (store.hashin_hex(transaction_hash),))
+        height=str(row[0] if row is not None else 0)
+        store.log.info("height on %s: %s", transaction_hash, height)
+        return ':'.join([coloring_scheme, transaction_hash, output_index, height ])
+        
+
+    def fix_color_set(store, color_set):
+        return [ store.fix_color_desc(color_desc) for color_desc in color_set ]
+    
+    def add_color_set(store, color_set, names):
+        store.log.info("new color set: %s", color_set)
+        color_set = store.fix_color_set(color_set)
+        color_set_hash = ColorSet(color_set).get_hash_string()
+        store.sql("""
+            INSERT OR IGNORE INTO color (
+                color_set_hash, color_set, names
+            ) VALUES (?, ?, ?)""",
+                  (store.hashin_hex(color_set_hash), ','.join(color_set), ','.join(names), ))
+        store.commit()
+        return {'color_set': color_set, 'color_set_hash': color_set_hash, 'names': names}
+        
+    def get_color_set(store, color_set_hash):
+        row = store.selectrow("""
+            SELECT color_set, names FROM color WHERE color_set_hash = ?""",
+           (store.hashin_hex(color_set_hash),))
+        color_set = row[0].split(',')
+        names = row[1].split(',')
+        return {'color_set': color_set, 'color_set_hash': color_set_hash, 'names': names}
 
     # Called to indicate that the given block has the correct magic
     # number and policy for the given chains.  Updates CHAIN_CANDIDATE

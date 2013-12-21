@@ -956,6 +956,30 @@ class Abe:
 
         body += ['</table>\n']
 
+    def handle_add_color_set(abe, page):
+        abe.do_raw(page, abe.do_add_color_set)
+    def do_add_color_set(abe, page, chain):
+        color_set = wsgiref.util.shift_path_info(page['env'])
+        names = wsgiref.util.shift_path_info(page['env'])
+        if color_set in (None, '') or names in (None, '') or page['env']['PATH_INFO'] != '':
+            return 'ERROR: Not in correct format'
+        color_set = color_set.split(',')
+        names = names.split(',')
+        if not is_color_set(color_set, names):
+            return 'ERROR: Not in correct format'
+        results = abe.store.add_color_set(color_set, names)
+        return json.dumps(results, indent=2)
+
+    def handle_get_color_set(abe, page):
+        abe.do_raw(page, abe.do_get_color_set)
+    def do_get_color_set(abe, page, chain):
+        color_set_hash = wsgiref.util.shift_path_info(page['env'])
+        if color_set_hash in (None, '') or page['env']['PATH_INFO'] != '' \
+                or not is_color_set_hash(color_set_hash):
+            return 'ERROR: Not in correct format'
+        results = abe.store.get_color_set(color_set_hash)
+        return json.dumps(results, indent=2)
+
     def handle_spends(abe, page):
         abe.do_raw(page, abe.do_spends)
     def do_spends(abe, page, chain):
@@ -2097,6 +2121,12 @@ def shortlink_block(link):
 
 def is_hash_prefix(s):
     return HASH_PREFIX_RE.match(s) and len(s) >= HASH_PREFIX_MIN
+
+def is_color_set(color_set, names):
+    return len(color_set) == len(names)
+
+def is_color_set_hash(color_set_hash):
+    return True
 
 def flatten(l):
     if isinstance(l, list):

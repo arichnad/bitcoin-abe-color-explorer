@@ -889,6 +889,15 @@ def populate_pubkeys(store):
                 count += 1
         store.log.info("Found %d", count)
 
+def create_color(store):
+    store.sql(
+"""CREATE TABLE color (
+    color_set_hash  NUMERIC(32) NOT NULL,
+    color_set       VARCHAR(1000) NOT NULL,
+    names           VARCHAR(1000) NOT NULL,
+    PRIMARY KEY (color_set_hash)
+)""")
+
 upgrades = [
     ('6',    add_block_value_in),
     ('6.1',  add_block_value_out),
@@ -971,7 +980,8 @@ upgrades = [
     ('Abe32.2', drop_tmp_datadir),       # Fast
     ('Abe33',   add_datadir_loader),     # Fast
     ('Abe34',   populate_pubkeys),       # Minutes?
-    ('Abe35', None)
+    ('Abe35',   create_color),           # Fast
+    ('Abe36', None)
 ]
 
 def upgrade_schema(store):
