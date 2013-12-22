@@ -151,6 +151,14 @@ NETHASH_SVG_TEMPLATE = """\
 # How many addresses to accept in /unspent/ADDR|ADDR|...
 MAX_UNSPENT_ADDRESSES = 200
 
+# How many colors can be in a color set (color descriptors and names can only be 1000 chars long)
+MAX_COLORS = 12
+
+COLOR_DESC_RE = re.compile('^obc:[\da-fA-F]+:\d+:\d+$')
+COLOR_NAME_RE = re.compile('^[\w ]+$')
+COLOR_HASH_RE = re.compile('^[\da-fA-F]+$')
+
+
 def make_store(args):
     store = DataStore.new(args)
     if (not args.no_load):
@@ -2123,10 +2131,18 @@ def is_hash_prefix(s):
     return HASH_PREFIX_RE.match(s) and len(s) >= HASH_PREFIX_MIN
 
 def is_color_set(color_set, names):
-    return len(color_set) == len(names)
+    if len(color_set) > MAX_COLORS or len(color_set) != len(names):
+        return False
+    for color_desc in color_set:
+        if not COLOR_DESC_RE.match(color_desc):
+            return False
+    for name in names:
+        if not COLOR_NAME_RE.match(name):
+            return False
+    return True
 
 def is_color_set_hash(color_set_hash):
-    return True
+    return COLOR_HASH_RE.match(color_set_hash)
 
 def flatten(l):
     if isinstance(l, list):
