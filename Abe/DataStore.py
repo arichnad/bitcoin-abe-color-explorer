@@ -1186,7 +1186,7 @@ store._ddl['configvar'],
     FOREIGN KEY (out_block_id) REFERENCES block (block_id)
 )""",
 
-"""CREATE TABLE color (
+"""CREATE TABLE color_set (
     color_set_hash  NUMERIC(32) NOT NULL,
     color_set       VARCHAR(1000) NOT NULL,
     names           VARCHAR(1000) NOT NULL,
@@ -2452,7 +2452,7 @@ store._ddl['txout_approx'],
         color_set = store.fix_color_set(color_set)
         color_set_hash = ColorSet(color_set).get_hash_string()
         store.sql("""
-            INSERT OR IGNORE INTO color (
+            INSERT OR IGNORE INTO color_set (
                 color_set_hash, color_set, names
             ) VALUES (?, ?, ?)""",
                   (store.hashin_hex(color_set_hash), ','.join(color_set), ','.join(names), ))
@@ -2461,7 +2461,7 @@ store._ddl['txout_approx'],
         
     def get_color_set(store, color_set_hash):
         row = store.selectrow("""
-            SELECT color_set, names FROM color WHERE color_set_hash = ?""",
+            SELECT color_set, names FROM color_set WHERE color_set_hash = ?""",
            (store.hashin_hex(color_set_hash),))
         color_set = row[0].split(',')
         names = row[1].split(',')
