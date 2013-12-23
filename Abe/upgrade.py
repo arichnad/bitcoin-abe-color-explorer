@@ -892,10 +892,9 @@ def populate_pubkeys(store):
 def create_color(store):
     store.sql(
 """CREATE TABLE color_set (
-    color_set_hash  NUMERIC(32) NOT NULL,
+    color_set_hash  NUMERIC(32) NOT NULL PRIMARY KEY,
     color_set       VARCHAR(1000) NOT NULL,
-    names           VARCHAR(1000) NOT NULL,
-    PRIMARY KEY (color_set_hash)
+    names           VARCHAR(1000) NOT NULL
 )""")
 
 upgrades = [

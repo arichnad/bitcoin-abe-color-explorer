@@ -1187,10 +1187,9 @@ store._ddl['configvar'],
 )""",
 
 """CREATE TABLE color_set (
-    color_set_hash  NUMERIC(32) NOT NULL,
+    color_set_hash  NUMERIC(32) NOT NULL PRIMARY KEY,
     color_set       VARCHAR(1000) NOT NULL,
-    names           VARCHAR(1000) NOT NULL,
-    PRIMARY KEY (color_set_hash)
+    names           VARCHAR(1000) NOT NULL
 )""",
 
 store._ddl['chain_summary'],
@@ -2429,6 +2428,7 @@ store._ddl['txout_approx'],
             return color_desc
         
         #lookup the height
+        #this might not work if it's pointing to a transaction that was recently transmitted
         row = store.selectrow("""
             SELECT b.block_height
               FROM chain c
@@ -2451,8 +2451,10 @@ store._ddl['txout_approx'],
         store.log.info("new color set: %s", color_set)
         color_set = store.fix_color_set(color_set)
         color_set_hash = ColorSet(color_set).get_hash_string()
+        get_value = store.get_color_set(color_set_hash)
+        if get_value is not None: return get_value
         store.sql("""
-            INSERT OR IGNORE INTO color_set (
+            INSERT INTO color_set (
                 color_set_hash, color_set, names
             ) VALUES (?, ?, ?)""",
                   (store.hashin_hex(color_set_hash), ','.join(color_set), ','.join(names), ))
@@ -2463,6 +2465,7 @@ store._ddl['txout_approx'],
         row = store.selectrow("""
             SELECT color_set, names FROM color_set WHERE color_set_hash = ?""",
            (store.hashin_hex(color_set_hash),))
+        if row is None: return None
         color_set = row[0].split(',')
         names = row[1].split(',')
         return {'color_set': color_set, 'color_set_hash': color_set_hash, 'names': names}
