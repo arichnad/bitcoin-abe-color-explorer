@@ -896,6 +896,24 @@ def create_color(store):
     color_set       VARCHAR(1000) NOT NULL,
     names           VARCHAR(1000) NOT NULL
 )""")
+    store.sql(
+"""CREATE TABLE color_link (
+    color_set_hash  NUMERIC(32) NOT NULL,
+    color_id        NUMERIC(26) NOT NULL,
+    PRIMARY KEY (color_set_hash, color_id),
+    FOREIGN KEY (color_set_hash) REFERENCES color_set (color_set_hash),
+    FOREIGN KEY (color_id) REFERENCES color (color_id)
+)""")
+    store.sql(
+"""CREATE TABLE color (
+    color_id      NUMERIC(26) NOT NULL PRIMARY KEY,
+    name          VARCHAR(80) NOT NULL,
+    coloring_scheme NUMERIC(4) NOT NULL,
+    txout_id      NUMERIC(26) NOT NULL,
+    UNIQUE(coloring_scheme, txout_id),
+    FOREIGN KEY (txout_id) REFERENCES txout (txout_id)
+)""")
+    store.create_sequence('color')
 
 upgrades = [
     ('6',    add_block_value_in),

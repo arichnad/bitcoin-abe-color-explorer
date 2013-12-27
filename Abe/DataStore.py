@@ -1192,6 +1192,23 @@ store._ddl['configvar'],
     names           VARCHAR(1000) NOT NULL
 )""",
 
+"""CREATE TABLE color_link (
+    color_set_hash  NUMERIC(32) NOT NULL,
+    color_id        NUMERIC(26) NOT NULL,
+    PRIMARY KEY (color_set_hash, color_id),
+    FOREIGN KEY (color_set_hash) REFERENCES color_set (color_set_hash),
+    FOREIGN KEY (color_id) REFERENCES color (color_id)
+)""",
+
+"""CREATE TABLE color (
+    color_id      NUMERIC(26) NOT NULL PRIMARY KEY,
+    name          VARCHAR(80) NOT NULL,
+    coloring_scheme NUMERIC(4) NOT NULL,
+    txout_id      NUMERIC(26) NOT NULL,
+    UNIQUE(coloring_scheme, txout_id),
+    FOREIGN KEY (txout_id) REFERENCES txout (txout_id)
+)""",
+
 store._ddl['chain_summary'],
 store._ddl['txout_detail'],
 store._ddl['txin_detail'],
@@ -1209,7 +1226,7 @@ store._ddl['txout_approx'],
                 raise
 
         for key in ['magic', 'policy', 'chain', 'datadir',
-                    'tx', 'txout', 'pubkey', 'txin', 'block']:
+                    'tx', 'txout', 'pubkey', 'txin', 'block', 'color']:
             store.create_sequence(key)
 
         store.sql("INSERT INTO abe_lock (lock_id) VALUES (1)")
@@ -2457,19 +2474,76 @@ store._ddl['txout_approx'],
             INSERT INTO color_set (
                 color_set_hash, color_set, names
             ) VALUES (?, ?, ?)""",
-                  (store.hashin_hex(color_set_hash), ','.join(color_set), ','.join(names), ))
+                (store.hashin_hex(color_set_hash), ','.join(color_set), ','.join(names), ))
+        for color_desc, name in zip(color_set, names):
+            store.add_color_to_set(color_set_hash, color_desc, name)
         store.commit()
         return {'color_set': color_set, 'color_set_hash': color_set_hash, 'names': names}
-        
+    
     def get_color_set(store, color_set_hash):
         row = store.selectrow("""
             SELECT color_set, names FROM color_set WHERE color_set_hash = ?""",
-           (store.hashin_hex(color_set_hash),))
+                (store.hashin_hex(color_set_hash),))
         if row is None: return None
         color_set = row[0].split(',')
         names = row[1].split(',')
         return {'color_set': color_set, 'color_set_hash': color_set_hash, 'names': names}
 
+    def add_color_to_set(store, color_set_hash, color_desc, name):
+        color_id = store.get_color(color_desc)
+        store.log.info("color desc %s: color_id %s", color_desc, color_id)
+        if color_id is None:
+            color_id = store.add_color(color_desc, name)
+        store.add_color_to_set_helper(color_set_hash, color_id)
+
+    def get_color(store, color_desc):
+        coloring_scheme, transaction_hash, output_index, height = color_desc.split(':')
+        
+        row = store.selectrow("""
+            SELECT color.color_id
+              FROM chain c
+              JOIN chain_candidate cc ON (cc.chain_id = c.chain_id)
+              JOIN block b ON (b.block_id = cc.block_id)
+              JOIN block_tx ON (block_tx.block_id = b.block_id)
+              JOIN tx ON (tx.tx_id = block_tx.tx_id)
+              JOIN txout ON (txout.tx_id = tx.tx_id)
+              JOIN color ON (txout.txout_id = color.txout_id)
+             WHERE color.coloring_scheme = ? AND
+             tx.tx_hash = ? AND
+             txout.txout_pos = ? AND
+             b.block_height = ?""",
+           (store.coloring_scheme_to_integer(coloring_scheme), store.hashin_hex(transaction_hash), int(output_index), int(height), ))
+        if row is None: return None
+        return int(row[0])
+
+    def add_color(store, color_desc, name):
+        coloring_scheme, transaction_hash, output_index, height = color_desc.split(':')
+        
+        txout_id, value = store.lookup_txout(store.hashout(store.hashin_hex(transaction_hash)), output_index)
+        if txout_id is None: raise Exception("could not find txout_id for %s, %s" % (transaction_hash, output_index))
+        
+        store.log.info("txout_id on %s: %s", transaction_hash, txout_id)
+    
+        color_id = store.new_id("color")
+        store.log.info("color desc %s: color_id %d", color_desc, color_id)
+        store.sql("""
+            INSERT INTO color (
+                color_id, name, coloring_scheme, txout_id
+            ) VALUES (?, ?, ?, ?)""",
+                  (color_id, name, store.coloring_scheme_to_integer(coloring_scheme), txout_id, ))
+        return color_id
+
+    def add_color_to_set_helper(store, color_set_hash, color_id):
+        store.sql("""
+            INSERT INTO color_link (
+                color_set_hash, color_id
+            ) VALUES (?, ?)""",
+                  (store.hashin_hex(color_set_hash), color_id))
+
+    def coloring_scheme_to_integer(store, coloring_scheme):
+        if coloring_scheme == 'obc': return 0
+        raise Exception("obc is the only coloring scheme we currently support")
+        
     # Called to indicate that the given block has the correct magic
     # number and policy for the given chains.  Updates CHAIN_CANDIDATE
     # and CHAIN.CHAIN_LAST_BLOCK_ID as appropriate.

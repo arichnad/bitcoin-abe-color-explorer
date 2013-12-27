@@ -154,7 +154,7 @@ MAX_UNSPENT_ADDRESSES = 200
 # How many colors can be in a color set (color descriptors and names can only be 1000 chars long)
 MAX_COLORS = 12
 
-COLOR_DESC_RE = re.compile('^obc:[\da-fA-F]+:\d+:\d+$')
+COLOR_DESC_RE = re.compile('^[a-z]+:[\da-fA-F]+:\d+:\d+$')
 COLOR_NAME_RE = re.compile('^[\w ]+$')
 COLOR_HASH_RE = re.compile('^[\da-fA-F]+$')
 
