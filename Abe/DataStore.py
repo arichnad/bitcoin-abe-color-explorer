@@ -2456,7 +2456,7 @@ store._ddl['txout_approx'],
              WHERE tx.tx_hash = ?
              ORDER BY c.chain_id, cc.in_longest DESC, b.block_hash
         """, (store.hashin_hex(transaction_hash),))
-        height=str(row[0] if row is not None else 0)
+        height=str(row[0] if row is not None and row[0] is not None else 0)
         store.log.info("height on %s: %s", transaction_hash, height)
         return ':'.join([coloring_scheme, transaction_hash, output_index, height ])
         
