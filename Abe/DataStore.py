@@ -1192,7 +1192,7 @@ store._ddl['configvar'],
     names           VARCHAR(1000) NOT NULL
 )""",
 
-"""CREATE TABLE color_link (
+"""CREATE TABLE color_set_link (
     color_set_hash  NUMERIC(32) NOT NULL,
     color_id        NUMERIC(26) NOT NULL,
     PRIMARY KEY (color_set_hash, color_id),
@@ -1203,9 +1203,14 @@ store._ddl['configvar'],
 """CREATE TABLE color (
     color_id      NUMERIC(26) NOT NULL PRIMARY KEY,
     name          VARCHAR(80) NOT NULL,
-    coloring_scheme NUMERIC(4) NOT NULL,
+    coloring_scheme NUMERIC(4) NOT NULL
+)""",
+
+"""CREATE TABLE color_link (
+    color_id      NUMERIC(26) NOT NULL,
     txout_id      NUMERIC(26) NOT NULL,
-    UNIQUE(coloring_scheme, txout_id),
+    PRIMARY KEY (color_id, txout_id),
+    FOREIGN KEY (color_id) REFERENCES color (color_id),
     FOREIGN KEY (txout_id) REFERENCES txout (txout_id)
 )""",
 
@@ -2507,7 +2512,8 @@ store._ddl['txout_approx'],
               JOIN block_tx ON (block_tx.block_id = b.block_id)
               JOIN tx ON (tx.tx_id = block_tx.tx_id)
               JOIN txout ON (txout.tx_id = tx.tx_id)
-              JOIN color ON (txout.txout_id = color.txout_id)
+              JOIN color_link ON (color_link.txout_id = txout.txout_id)
+              JOIN color ON (color.color_id = color_link.color_id)
              WHERE color.coloring_scheme = ? AND
              tx.tx_hash = ? AND
              txout.txout_pos = ? AND
@@ -2528,14 +2534,19 @@ store._ddl['txout_approx'],
         store.log.info("color desc %s: color_id %d", color_desc, color_id)
         store.sql("""
             INSERT INTO color (
-                color_id, name, coloring_scheme, txout_id
-            ) VALUES (?, ?, ?, ?)""",
-                  (color_id, name, store.coloring_scheme_to_integer(coloring_scheme), txout_id, ))
+                color_id, name, coloring_scheme
+            ) VALUES (?, ?, ?)""",
+                  (color_id, name, store.coloring_scheme_to_integer(coloring_scheme), ))
+        store.sql("""
+            INSERT INTO color_link (
+                color_id, txout_id
+            ) VALUES (?, ?)""",
+                  (color_id, txout_id, ))
         return color_id
 
     def add_color_to_set_helper(store, color_set_hash, color_id):
         store.sql("""
-            INSERT INTO color_link (
+            INSERT INTO color_set_link (
                 color_set_hash, color_id
             ) VALUES (?, ?)""",
                   (store.hashin_hex(color_set_hash), color_id))

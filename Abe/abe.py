@@ -875,7 +875,8 @@ class Abe:
                 color.name
               FROM txin
               LEFT JOIN txout ON (txout.txout_id = txin.txout_id)
-              LEFT JOIN color ON (color.txout_id = txout.txout_id)
+              LEFT JOIN color_link ON (color_link.txout_id = txout.txout_id)
+              LEFT JOIN color ON (color.color_id = color_link.color_id)
               LEFT JOIN pubkey ON (pubkey.pubkey_id = txout.pubkey_id)
               LEFT JOIN tx prevtx ON (txout.tx_id = prevtx.tx_id)
               LEFT JOIN unlinked_txin u ON (u.txin_id = txin.txin_id)
@@ -894,7 +895,8 @@ class Abe:
                 pubkey.pubkey_hash,
                 color.name
               FROM txout
-              LEFT JOIN color ON (color.txout_id = txout.txout_id)
+              LEFT JOIN color_link ON (color_link.txout_id = txout.txout_id)
+              LEFT JOIN color ON (color.color_id = color_link.color_id)
               LEFT JOIN txin ON (txin.txout_id = txout.txout_id)
               LEFT JOIN pubkey ON (pubkey.pubkey_id = txout.pubkey_id)
               LEFT JOIN tx nexttx ON (txin.tx_id = nexttx.tx_id)
