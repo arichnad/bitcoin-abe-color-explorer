@@ -823,7 +823,7 @@ class Abe:
         """, (tx_id,))
 
         def parse_row(row):
-            pos, script, value, o_hash, o_pos, binaddr = row
+            pos, script, value, o_hash, o_pos, binaddr, color_name = row
             return {
                 "pos": int(pos),
                 "script": abe.store.binout(script),
@@ -831,6 +831,7 @@ class Abe:
                 "o_hash": abe.store.hashout_hex(o_hash),
                 "o_pos": None if o_pos is None else int(o_pos),
                 "binaddr": abe.store.binout(binaddr),
+                "color_name": '' if color_name is None else color_name,
                 }
 
         def row_to_html(row, this_ch, other_ch, no_link_text):
@@ -848,6 +849,7 @@ class Abe:
             body += [
                 '</td>\n',
                 '<td>', format_satoshis(row['value'], chain), '</td>\n',
+                '<td>', row['color_name'], '</td>\n',
                 '<td>']
             if row['binaddr'] is None:
                 body += ['Unknown']
@@ -869,9 +871,11 @@ class Abe:
                 txout.txout_value,
                 COALESCE(prevtx.tx_hash, u.txout_tx_hash),
                 COALESCE(txout.txout_pos, u.txout_pos),
-                pubkey.pubkey_hash
+                pubkey.pubkey_hash,
+                color.name
               FROM txin
               LEFT JOIN txout ON (txout.txout_id = txin.txout_id)
+              LEFT JOIN color ON (color.txout_id = txout.txout_id)
               LEFT JOIN pubkey ON (pubkey.pubkey_id = txout.pubkey_id)
               LEFT JOIN tx prevtx ON (txout.tx_id = prevtx.tx_id)
               LEFT JOIN unlinked_txin u ON (u.txin_id = txin.txin_id)
@@ -887,8 +891,10 @@ class Abe:
                 txout.txout_value,
                 nexttx.tx_hash,
                 txin.txin_pos,
-                pubkey.pubkey_hash
+                pubkey.pubkey_hash,
+                color.name
               FROM txout
+              LEFT JOIN color ON (color.txout_id = txout.txout_id)
               LEFT JOIN txin ON (txin.txout_id = txout.txout_id)
               LEFT JOIN pubkey ON (pubkey.pubkey_id = txout.pubkey_id)
               LEFT JOIN tx nexttx ON (txin.tx_id = nexttx.tx_id)
@@ -948,7 +954,7 @@ class Abe:
         body += ['</p>\n',
                  '<a name="inputs"><h3>Inputs</h3></a>\n<table>\n',
                  '<tr><th>Index</th><th>Previous output</th><th>Amount</th>',
-                 '<th>From address</th>']
+                 '<th>Color</th><th>From address</th>']
         if abe.store.keep_scriptsig:
             body += ['<th>ScriptSig</th>']
         body += ['</tr>\n']
@@ -958,7 +964,7 @@ class Abe:
         body += ['</table>\n',
                  '<a name="outputs"><h3>Outputs</h3></a>\n<table>\n',
                  '<tr><th>Index</th><th>Redeemed at input</th><th>Amount</th>',
-                 '<th>To address</th><th>ScriptPubKey</th></tr>\n']
+                 '<th>Color</th><th>To address</th><th>ScriptPubKey</th></tr>\n']
         for row in out_rows:
             row_to_html(row, 'o', 'i', 'Not yet redeemed')
 
